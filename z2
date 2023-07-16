@@ -1,0 +1,38 @@
+import logging
+import asyncio
+from datetime import datetime
+import gspread
+from aiogram import Bot, Dispatcher, types
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+
+
+logging.basicConfig(level=logging.ERROR)
+bot = Bot(token='токен бота')
+storage = MemoryStorage()
+dp = Dispatcher(bot, storage=storage)
+gc = gspread.service_account(filename='токен')  
+spreadsheet_id = 'ID таблицы'  
+@dp.message_handler(commands=['start'])
+async def start_command(message: types.Message):
+    await message.answer('Привет! Я готов сохранять твои сообщения в Google Sheets.')
+@dp.message_handler()
+async def all_other_messages(message: types.Message):
+    try:
+       
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        user_login = message.from_user.username
+        message_text = message.text
+        sheet = gc.open_by_key(spreadsheet_id).sheet1  
+        data = [current_time, user_login, message_text]
+        sheet.append_row(data)
+        await message.answer('Сообщение успешно сохранено!')
+    except Exception as e:
+        logging.error(f'{datetime.now()}: {str(e)}')
+        await message.answer('Ошибка.')
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    try:
+        loop.create_task(dp.start_polling())
+        loop.run_forever()
+    finally:
+        loop.stop()
